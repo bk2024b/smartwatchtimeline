@@ -1,0 +1,23 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
+
+export default function EditProductLinkPage() {
+  const { id } = useParams(); const router = useRouter(); const supabase = getSupabaseBrowser(); const [form, setForm] = useState(null); const [watches, setWatches] = useState([]); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
+  useEffect(() => { (async () => { const [{ data: link, error: le }, { data: ws }] = await Promise.all([supabase.from('product_links').select('*').eq('id', id).maybeSingle(), supabase.from('smartwatches').select('id,name').order('name')]); if (le) setError(le.message); setForm(link); setWatches(ws || []); })(); }, [id]);
+  async function save(e) { e.preventDefault(); setSaving(true); const p = { smartwatch_id: form.smartwatch_id, vendor: form.vendor, vendor_label: form.vendor_label.trim(), url: form.url.trim(), price: form.price === '' ? null : Number(form.price), currency: form.currency.toUpperCase(), is_affiliate: form.is_affiliate, rel_sponsored: form.rel_sponsored, priority: Number(form.priority) || 0 }; const { error: e2 } = await supabase.from('product_links').update(p).eq('id', id); if (e2) setError(e2.message); else router.push('/admin/product-links'); setSaving(false); }
+  async function remove() { if (!confirm('Delete this product link?')) return; const { error: e } = await supabase.from('product_links').delete().eq('id', id); if (e) setError(e.message); else router.push('/admin/product-links'); }
+  if (!form) return <main className="pt-8 text-dim">{error || 'Loading link…'}</main>;
+  return <main className="pt-8 max-w-2xl"><div className="font-mono text-xs text-accent uppercase mb-2">Commerce / Product links / {id}</div><h1 className="font-display font-bold text-4xl mb-8">Edit product link</h1><form onSubmit={save} className="bg-panel border border-line p-6 space-y-5">
+    <label><span className="field-label">Smartwatch</span><select className="field-input w-full" value={form.smartwatch_id} onChange={(e) => setForm({ ...form, smartwatch_id: e.target.value })}>{watches.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+    <label><span className="field-label">Vendor key</span><input className="field-input w-full" value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} /></label>
+    <label><span className="field-label">Vendor label</span><input required className="field-input w-full" value={form.vendor_label} onChange={(e) => setForm({ ...form, vendor_label: e.target.value })} /></label>
+    <label><span className="field-label">URL</span><input required type="url" className="field-input w-full" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></label>
+    <div className="grid grid-cols-2 gap-3"><label><span className="field-label">Price</span><input type="number" step="0.01" className="field-input w-full" value={form.price ?? ''} onChange={(e) => setForm({ ...form, price: e.target.value })} /></label><label><span className="field-label">Currency</span><input className="field-input w-full" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase() })} /></label></div>
+    <label><span className="field-label">Priority</span><input type="number" className="field-input w-full" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></label>
+    <div className="flex gap-6 text-sm"><label><input type="checkbox" checked={!!form.is_affiliate} onChange={(e) => setForm({ ...form, is_affiliate: e.target.checked })} /> Affiliate</label><label><input type="checkbox" checked={!!form.rel_sponsored} onChange={(e) => setForm({ ...form, rel_sponsored: e.target.checked })} /> Sponsored rel</label></div>
+    {error && <div className="text-sm text-red-400">{error}</div>}<div className="flex gap-3"><button className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button><button type="button" className="btn-ghost" onClick={remove}>Delete</button></div>
+  </form></main>;
+}
