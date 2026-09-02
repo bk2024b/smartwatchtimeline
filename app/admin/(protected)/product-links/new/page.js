@@ -1,0 +1,22 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
+
+const empty = { smartwatch_id: '', vendor: 'amazon', vendor_label: '', url: '', price: '', currency: 'USD', is_affiliate: true, rel_sponsored: true, priority: 0 };
+export default function NewProductLinkPage() {
+  const supabase = getSupabaseBrowser(); const router = useRouter(); const [form, setForm] = useState(empty); const [watches, setWatches] = useState([]); const [saving, setSaving] = useState(false); const [error, setError] = useState('');
+  useEffect(() => { supabase.from('smartwatches').select('id,name').order('name').then(({ data }) => setWatches(data || [])); }, []);
+  async function save(e) { e.preventDefault(); setSaving(true); setError(''); const p = { ...form, price: form.price === '' ? null : Number(form.price), priority: Number(form.priority) || 0 }; const { error: e2 } = await supabase.from('product_links').insert(p); if (e2) setError(e2.message); else router.push('/admin/product-links'); setSaving(false); }
+  return <main className="pt-8 max-w-2xl"><div className="font-mono text-xs text-accent uppercase mb-2">Commerce / Product links</div><h1 className="font-display font-bold text-4xl mb-8">Add product link</h1><form onSubmit={save} className="bg-panel border border-line p-6 space-y-5">
+    <label className="block"><span className="field-label">Smartwatch</span><select className="field-input w-full" value={form.smartwatch_id} onChange={(e) => setForm({ ...form, smartwatch_id: e.target.value })}><option value="">Select model…</option>{watches.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+    <label className="block"><span className="field-label">Vendor key</span><select className="field-input w-full" value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}>{['amazon','best_buy','walmart','garmin_store','samsung_store','apple_store'].map((v) => <option key={v}>{v}</option>)}</select></label>
+    <label className="block"><span className="field-label">Vendor label</span><input required className="field-input w-full" value={form.vendor_label} onChange={(e) => setForm({ ...form, vendor_label: e.target.value })} placeholder="Amazon" /></label>
+    <label className="block"><span className="field-label">URL</span><input required type="url" className="field-input w-full" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></label>
+    <div className="grid grid-cols-2 gap-3"><label><span className="field-label">Price</span><input type="number" step="0.01" className="field-input w-full" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></label><label><span className="field-label">Currency</span><input className="field-input w-full" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase() })} /></label></div>
+    <label><span className="field-label">Priority</span><input type="number" className="field-input w-full" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></label>
+    <div className="flex gap-6 text-sm"><label><input type="checkbox" checked={form.is_affiliate} onChange={(e) => setForm({ ...form, is_affiliate: e.target.checked })} /> Affiliate</label><label><input type="checkbox" checked={form.rel_sponsored} onChange={(e) => setForm({ ...form, rel_sponsored: e.target.checked })} /> Sponsored rel</label></div>
+    {error && <div className="text-sm text-red-400">{error}</div>}<button className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Create link'}</button>
+  </form></main>;
+}
