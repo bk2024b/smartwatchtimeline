@@ -22,7 +22,7 @@ export default async function BlogPage() {
       headline: article.title,
       description: article.excerpt,
       datePublished: article.published_at,
-      url: `${SITE_URL}/blog/${article.id}`,
+      url: `${SITE_URL}/blog/${article.slug}`,
     })),
   };
 
@@ -40,24 +40,27 @@ export default async function BlogPage() {
           <div className="border border-line bg-panel rounded-2xl p-8 mt-10 text-dim">No published articles yet.</div>
         ) : (
           <div className="grid md:grid-cols-2 gap-5 mt-10">
-            {articles.map((article, index) => (
-              <Link
-                key={article.id}
-                href={`/blog/${article.id}`}
-                className={`group block bg-panel border border-line rounded-2xl p-6 hover:border-accent transition-colors ${index === 0 ? 'md:col-span-2' : ''}`}
-              >
-                <div className="flex items-center gap-3 text-[10px] font-mono uppercase tracking-wide text-accent">
-                  <span>Editorial</span>
-                  <span className="text-dim">•</span>
-                  <span className="text-dim">{article.reading_minutes || 1} min read</span>
-                </div>
-                <h2 className={`${index === 0 ? 'text-[27px] sm:text-[34px]' : 'text-[22px]'} font-display font-bold leading-tight mt-3 group-hover:text-accent transition-colors`}>
-                  {article.title}
-                </h2>
-                <p className="text-dim text-sm sm:text-[15px] leading-7 mt-3 max-w-3xl">{article.excerpt}</p>
-                <div className="mt-5 text-accent font-mono text-[10px] uppercase">Read article →</div>
-              </Link>
-            ))}
+            {articles.map((article, index) => {
+              const slug = article.slug || article.id;
+              return (
+                <Link
+                  key={article.id}
+                  href={`/blog/${slug}`}
+                  className={`group block bg-panel border border-line rounded-2xl p-6 hover:border-accent transition-colors ${index === 0 ? 'md:col-span-2' : ''}`}
+                >
+                  <div className="flex items-center gap-3 text-[10px] font-mono uppercase tracking-wide text-accent">
+                    <span>{article.category || 'Editorial'}</span>
+                    <span className="text-dim">•</span>
+                    <span className="text-dim">{article.reading_minutes || 1} min read</span>
+                  </div>
+                  <h2 className={`${index === 0 ? 'text-[27px] sm:text-[34px]' : 'text-[22px]'} font-display font-bold leading-tight mt-3 group-hover:text-accent transition-colors`}>
+                    {article.title}
+                  </h2>
+                  <p className="text-dim text-sm sm:text-[15px] leading-7 mt-3 max-w-3xl">{article.excerpt}</p>
+                  <div className="mt-5 text-accent font-mono text-[10px] uppercase">Read article →</div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </article>
