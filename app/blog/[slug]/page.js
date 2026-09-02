@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getArticleById, getPublishedArticles } from '@/lib/queries';
+import { getArticleBySlug, getPublishedArticles } from '@/lib/queries';
 import { canonicalFor, JsonLd, SITE_URL } from '@/lib/seo';
 
 export const revalidate = 600;
@@ -8,20 +8,21 @@ export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const articles = await getPublishedArticles();
-  return articles.map((article) => ({ slug: article.id }));
+  return articles.map((article) => ({ slug: article.slug || article.id }));
 }
 
 export async function generateMetadata({ params }) {
-  const article = await getArticleById(params.slug);
+  const article = await getArticleBySlug(params.slug);
   if (!article) return {};
+  const slug = article.slug || article.id;
   return {
     title: `${article.title} | SmartwatchTimeline`,
     description: article.excerpt,
-    ...canonicalFor(`/blog/${article.id}`),
+    ...canonicalFor(`/blog/${slug}`),
     openGraph: {
       title: article.title,
       description: article.excerpt,
-      url: `${SITE_URL}/blog/${article.id}`,
+      url: `${SITE_URL}/blog/${slug}`,
       type: 'article',
       publishedTime: article.published_at,
       siteName: 'SmartwatchTimeline',
@@ -35,8 +36,9 @@ function renderContent(content) {
 }
 
 export default async function EditorialPage({ params }) {
-  const article = await getArticleById(params.slug);
+  const article = await getArticleBySlug(params.slug);
   if (!article) notFound();
+  const slug = article.slug || article.id;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -45,7 +47,7 @@ export default async function EditorialPage({ params }) {
     description: article.excerpt,
     datePublished: article.published_at,
     dateModified: article.updated_at,
-    url: `${SITE_URL}/blog/${article.id}`,
+    url: `${SITE_URL}/blog/${slug}`,
     image: article.cover_image_url ? [article.cover_image_url] : undefined,
     publisher: { '@type': 'Organization', name: 'SmartwatchTimeline' },
   };
@@ -58,7 +60,7 @@ export default async function EditorialPage({ params }) {
 
         <header className="mt-8 pb-8 border-b border-line">
           <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono uppercase tracking-wide text-accent">
-            <span>Editorial</span>
+            <span>{article.category || 'Editorial'}</span>
             {article.published_at && (
               <>
                 <span className="text-dim">•</span>
