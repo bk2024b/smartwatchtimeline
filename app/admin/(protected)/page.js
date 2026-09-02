@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireAdmin } from '@/lib/requireAdmin';
 import { getAllWatches, getBrands, getPublishedArticles, getPublishedGuides, getAllProductLinks } from '@/lib/queries';
 
 const cards = [
@@ -10,6 +11,8 @@ const cards = [
 ];
 
 export default async function AdminDashboardPage() {
+  await requireAdmin();
+
   const [watches, brands, articles, guides, links] = await Promise.all([
     getAllWatches(), getBrands(), getPublishedArticles(), getPublishedGuides(), getAllProductLinks(),
   ]);
