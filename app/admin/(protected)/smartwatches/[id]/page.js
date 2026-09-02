@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
+import { revalidateAdminResource } from '@/lib/adminRevalidate';
 
 const fields = [
   ['family','Family','text'], ['generation','Generation','text'], ['variant','Variant','text'], ['gamme','Series / gamme','text'], ['name','Name','text'], ['tagline','Tagline','text'],
@@ -19,8 +20,8 @@ export default function AdminSmartwatchEditor() {
   useEffect(() => { async function load() { const [{ data }, { data: brandData }] = await Promise.all([supabase.from('smartwatches').select('*').eq('id', id).maybeSingle(), supabase.from('brands').select('id,name').order('name')]); setWatch(data); setBrands(brandData || []); } if (id) load(); }, [id]);
   function set(field, value) { setWatch((current) => ({ ...current, [field]: value })); }
   async function uploadImage(file) { if (!file) return; setUploading(true); setMessage(''); const form = new FormData(); form.append('file', file); form.append('watchId', id); const response = await fetch('/api/admin/upload-image', { method: 'POST', body: form }); const result = await response.json(); setUploading(false); if (!response.ok) return setMessage(result.error || 'Upload failed.'); set('image_url', result.url); set('image_count', Number(watch.image_count || 0) + 1); setMessage('Image uploaded. Save the model to publish the URL.'); }
-  async function save(event) { event.preventDefault(); setSaving(true); setMessage(''); const editable = Object.fromEntries(Object.keys(watch).filter((key) => key !== 'id' && !['created_at','updated_at'].includes(key)).map((key) => [key, watch[key]])); const { error } = await supabase.from('smartwatches').update(editable).eq('id', id); setSaving(false); setMessage(error ? error.message : 'Saved.'); }
-  async function remove() { if (!window.confirm('Delete this smartwatch?')) return; const { error } = await supabase.from('smartwatches').delete().eq('id', id); if (error) setMessage(error.message); else router.replace('/admin/smartwatches'); }
+  async function save(event) { event.preventDefault(); setSaving(true); setMessage(''); const editable = Object.fromEntries(Object.keys(watch).filter((key) => key !== 'id' && !['created_at','updated_at'].includes(key)).map((key) => [key, watch[key]])); const { error } = await supabase.from('smartwatches').update(editable).eq('id', id); setSaving(false); if (error) return setMessage(error.message); setMessage('Saved.'); await revalidateAdminResource('watch', id); }
+  async function remove() { if (!window.confirm('Delete this smartwatch?')) return; const { error } = await supabase.from('smartwatches').delete().eq('id', id); if (error) setMessage(error.message); else { await revalidateAdminResource('watch', id); router.replace('/admin/smartwatches'); } }
   if (watch === null) return <div className="pt-12 text-dim">Loading model…</div>;
   if (!watch) return <div className="pt-12 text-dim">Model not found.</div>;
   return <main className="pt-8 pb-16"><div className="flex items-end gap-4 mb-8"><div className="mr-auto"><div className="font-mono text-xs text-accent uppercase mb-2">Catalog / Edit</div><h1 className="font-display font-bold text-3xl">{watch.name}</h1><p className="text-dim text-sm mt-1">{watch.id}</p></div><button onClick={remove} className="btn-ghost">Delete</button></div>
