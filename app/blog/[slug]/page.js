@@ -1,35 +1,41 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { EDITORIALS, getEditorial } from '@/lib/editorial';
+import { getArticleById, getPublishedArticles } from '@/lib/queries';
 import { canonicalFor, JsonLd, SITE_URL } from '@/lib/seo';
 
-export const revalidate = 3600;
+export const revalidate = 600;
 export const dynamicParams = false;
 
-export function generateStaticParams() {
-  return EDITORIALS.map((article) => ({ slug: article.slug }));
+export async function generateStaticParams() {
+  const articles = await getPublishedArticles();
+  return articles.map((article) => ({ slug: article.id }));
 }
 
 export async function generateMetadata({ params }) {
-  const article = getEditorial(params.slug);
+  const article = await getArticleById(params.slug);
   if (!article) return {};
   return {
     title: `${article.title} | SmartwatchTimeline`,
     description: article.excerpt,
-    ...canonicalFor(`/blog/${article.slug}`),
+    ...canonicalFor(`/blog/${article.id}`),
     openGraph: {
       title: article.title,
       description: article.excerpt,
-      url: `${SITE_URL}/blog/${article.slug}`,
+      url: `${SITE_URL}/blog/${article.id}`,
       type: 'article',
-      publishedTime: article.date,
+      publishedTime: article.published_at,
       siteName: 'SmartwatchTimeline',
     },
   };
 }
 
-export default function EditorialPage({ params }) {
-  const article = getEditorial(params.slug);
+function renderContent(content) {
+  if (!content) return null;
+  return <div dangerouslySetInnerHTML={{ __html: content }} />;
+}
+
+export default async function EditorialPage({ params }) {
+  const article = await getArticleById(params.slug);
   if (!article) notFound();
 
   const jsonLd = {
@@ -37,8 +43,10 @@ export default function EditorialPage({ params }) {
     '@type': 'Article',
     headline: article.title,
     description: article.excerpt,
-    datePublished: article.date,
-    url: `${SITE_URL}/blog/${article.slug}`,
+    datePublished: article.published_at,
+    dateModified: article.updated_at,
+    url: `${SITE_URL}/blog/${article.id}`,
+    image: article.cover_image_url ? [article.cover_image_url] : undefined,
     publisher: { '@type': 'Organization', name: 'SmartwatchTimeline' },
   };
 
@@ -50,23 +58,25 @@ export default function EditorialPage({ params }) {
 
         <header className="mt-8 pb-8 border-b border-line">
           <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono uppercase tracking-wide text-accent">
-            <span>{article.category}</span>
+            <span>Editorial</span>
+            {article.published_at && (
+              <>
+                <span className="text-dim">•</span>
+                <time dateTime={article.published_at} className="text-dim">{article.published_at.slice(0, 10)}</time>
+              </>
+            )}
             <span className="text-dim">•</span>
-            <time dateTime={article.date} className="text-dim">{article.date}</time>
-            <span className="text-dim">•</span>
-            <span className="text-dim">{article.readTime}</span>
+            <span className="text-dim">{article.reading_minutes || 1} min read</span>
           </div>
           <h1 className="font-display font-bold text-[38px] sm:text-[56px] leading-[1.05] mt-4">{article.title}</h1>
           <p className="text-dim text-[16px] sm:text-[18px] leading-8 mt-5 max-w-3xl">{article.excerpt}</p>
+          {article.cover_image_url && (
+            <img src={article.cover_image_url} alt="" className="w-full rounded-2xl border border-line mt-8" />
+          )}
         </header>
 
         <div className="prose prose-invert max-w-none py-8 sm:py-12">
-          {article.sections.map(([heading, body]) => (
-            <section key={heading} className="mb-10 last:mb-0">
-              <h2 className="font-display text-2xl sm:text-3xl font-bold mb-3">{heading}</h2>
-              <p className="text-dim text-[15px] sm:text-[17px] leading-8">{body}</p>
-            </section>
-          ))}
+          {renderContent(article.content_html)}
         </div>
 
         <div className="border border-line bg-panel rounded-2xl p-6 mt-4">
