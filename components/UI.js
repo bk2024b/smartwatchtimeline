@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { getBrands, getAllWatches } from '@/lib/queries';
 
 export function Stat({ value, label }) {
   return (
@@ -31,13 +30,7 @@ function FooterLink({ href, children }) {
   return <Link href={href} className="text-dim hover:text-accent transition-colors">{children}</Link>;
 }
 
-export async function Footer() {
-  const [brands, watches] = await Promise.all([getBrands(), getAllWatches()]);
-  const topBrands = [...brands]
-    .map((b) => ({ ...b, count: watches.filter((w) => w.brand_id === b.id).length }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6);
-
+export function Footer() {
   return (
     <footer className="pt-10 border-t border-line mt-8">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-8 text-xs">
@@ -49,7 +42,12 @@ export async function Footer() {
           <FooterLink href="/compare">Compare tool</FooterLink>
         </FooterCol>
         <FooterCol title="Brands">
-          {topBrands.map((b) => <FooterLink key={b.id} href={`/brands/${b.id}`}>{b.name}</FooterLink>)}
+          <FooterLink href="/brands/apple">Apple</FooterLink>
+          <FooterLink href="/brands/samsung">Samsung</FooterLink>
+          <FooterLink href="/brands/garmin">Garmin</FooterLink>
+          <FooterLink href="/brands/google">Google</FooterLink>
+          <FooterLink href="/brands/fitbit">Fitbit</FooterLink>
+          <FooterLink href="/brands/amazfit">Amazfit</FooterLink>
         </FooterCol>
         <FooterCol title="Popular guides">
           <FooterLink href="/guides/best-smartwatch-under-100">Under $100</FooterLink>
