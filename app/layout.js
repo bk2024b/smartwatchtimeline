@@ -6,12 +6,36 @@ import { SITE_URL, ogDefaults } from '@/lib/seo';
 export function generateMetadata() {
   return {
     metadataBase: new URL(SITE_URL),
-    title: 'SmartwatchTimeline — The Complete History of Smartwatches',
-    description: 'Every smartwatch, every generation, compared on the specs that matter — battery life, health sensors, and price.',
+    title: {
+      default: 'SmartwatchTimeline — The Complete History of Smartwatches',
+      template: '%s | SmartwatchTimeline',
+    },
+    description: 'Every smartwatch, every generation, compared on the specs that matter — battery life, health sensors, connectivity, and price.',
+    applicationName: 'SmartwatchTimeline',
+    authors: [{ name: 'SmartwatchTimeline' }],
+    creator: 'SmartwatchTimeline',
+    publisher: 'SmartwatchTimeline',
     alternates: { canonical: '/' },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+        'max-video-preview': -1,
+      },
+    },
     openGraph: {
       ...ogDefaults('/'),
-      title: 'SmartwatchTimeline',
+      title: 'SmartwatchTimeline — The Complete History of Smartwatches',
+      description: 'Every smartwatch, every generation, compared on the specs that matter.',
+      images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'SmartwatchTimeline' }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'SmartwatchTimeline — The Complete History of Smartwatches',
       description: 'Every smartwatch, every generation, compared on the specs that matter.',
       images: ['/og-image.png'],
     },
