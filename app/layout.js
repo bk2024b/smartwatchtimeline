@@ -1,6 +1,6 @@
 import './globals.css';
 import { display, body, mono } from '@/lib/fonts';
-import { Nav } from '@/components/UI';
+import { Nav, Footer } from '@/components/UI';
 import { SITE_URL, ogDefaults } from '@/lib/seo';
 
 export function generateMetadata() {
@@ -21,18 +21,17 @@ export function generateMetadata() {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${display.variable} ${body.variable} ${mono.variable} font-body bg-page text-fg`}>
-        <header className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <body className={`${display.variable} ${body.variable} ${mono.variable} font-body bg-page text-fg min-h-screen`}>
+        <a href="#main-content" className="skip-link">Skip to content</a>
+        <header className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
           <Nav />
         </header>
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">{children}</main>
-        {/*
-          TODO once accounts exist: Google Analytics / Microsoft Clarity /
-          ad network script tags go here, same pattern as EarbudsTimeline's
-          components/GoogleAnalytics.js + MicrosoftClarity.js — not stubbed
-          with placeholder IDs since a fake ID would silently fail instead
-          of erroring, which is worse than just not having it yet.
-        */}
+        <main id="main-content" className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 min-h-[60vh]">
+          {children}
+        </main>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-8">
+          <Footer />
+        </div>
       </body>
     </html>
   );
