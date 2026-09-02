@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
 import { getAllWatches } from '@/lib/queries';
 import { canonicalFor } from '@/lib/seo';
-import { Footer } from '@/components/UI';
 import CompareForm from './CompareForm';
 
 export const revalidate = 3600;
@@ -27,7 +26,6 @@ export default async function ComparePage() {
           <CompareForm watches={watches} />
         </Suspense>
       </article>
-      <Footer />
     </>
   );
 }
