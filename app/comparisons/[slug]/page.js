@@ -46,6 +46,8 @@ const ROWS = [
   ['NFC payments', (w) => w.nfc_payments ? 'Yes' : 'No'],
   ['ECG', (w) => w.ecg ? 'Yes' : 'No'],
   ['Blood oxygen', (w) => w.blood_oxygen ? 'Yes' : 'No'],
+  ['Heart-rate tracking', (w) => w.heart_rate ? 'Yes' : 'No'],
+  ['Sleep tracking', (w) => w.sleep_tracking ? 'Yes' : 'No'],
   ['Always-on display', (w) => w.always_on_display ? 'Yes' : 'No'],
   ['Ecosystem', (w) => w.ecosystem || '—'],
   ['OS', (w) => w.os || '—'],
@@ -53,7 +55,10 @@ const ROWS = [
   ['Round face', (w) => w.round_face ? 'Yes' : 'No'],
 ];
 
-function numericValue(w, key) { const n = Number(w[key]); return Number.isFinite(n) ? n : null; }
+function numericValue(w, key) {
+  const n = Number(w[key]);
+  return Number.isFinite(n) ? n : null;
+}
 
 function metricWinner(a, b, key, higherIsBetter = true) {
   const av = numericValue(a, key); const bv = numericValue(b, key);
@@ -61,25 +66,39 @@ function metricWinner(a, b, key, higherIsBetter = true) {
   return higherIsBetter ? (av > bv ? 'a' : 'b') : (av < bv ? 'a' : 'b');
 }
 
+function booleanWinner(a, b, key) {
+  const av = Boolean(a[key]); const bv = Boolean(b[key]);
+  if (av === bv) return null;
+  return av ? 'a' : 'b';
+}
+
+function winnerFor(label, a, b) {
+  if (label === 'Battery life') return metricWinner(a, b, 'battery_life_h', true);
+  if (label === 'Weight' || label === 'Price') return metricWinner(a, b, label === 'Weight' ? 'weight_g' : 'price', false);
+  const booleanKeys = {
+    GPS: 'gps', Cellular: 'cellular', 'NFC payments': 'nfc_payments', ECG: 'ecg', 'Blood oxygen': 'blood_oxygen',
+    'Heart-rate tracking': 'heart_rate', 'Sleep tracking': 'sleep_tracking', 'Always-on display': 'always_on_display',
+    Rugged: 'rugged', 'Round face': 'round_face',
+  };
+  return booleanKeys[label] ? booleanWinner(a, b, booleanKeys[label]) : null;
+}
+
 function scoreWatch(watch, other) {
   return [
     metricWinner(watch, other, 'battery_life_h', true),
     metricWinner(watch, other, 'weight_g', false),
     metricWinner(watch, other, 'price', false),
-    Boolean(watch.gps) && !Boolean(other.gps) ? 'a' : Boolean(other.gps) && !Boolean(watch.gps) ? 'b' : null,
-    Boolean(watch.cellular) && !Boolean(other.cellular) ? 'a' : Boolean(other.cellular) && !Boolean(watch.cellular) ? 'b' : null,
-    Boolean(watch.ecg) && !Boolean(other.ecg) ? 'a' : Boolean(other.ecg) && !Boolean(watch.ecg) ? 'b' : null,
-    Boolean(watch.blood_oxygen) && !Boolean(other.blood_oxygen) ? 'a' : Boolean(other.blood_oxygen) && !Boolean(watch.blood_oxygen) ? 'b' : null,
-    Boolean(watch.nfc_payments) && !Boolean(other.nfc_payments) ? 'a' : Boolean(other.nfc_payments) && !Boolean(watch.nfc_payments) ? 'b' : null,
-  ].filter(Boolean).length;
+    ...['gps', 'cellular', 'ecg', 'blood_oxygen', 'nfc_payments', 'always_on_display', 'heart_rate', 'sleep_tracking'].map((key) => booleanWinner(watch, other, key)),
+  ].filter((winner) => winner === 'a').length;
 }
 
 function ComparisonRow({ label, get, a, b }) {
-  const av = get(a); const bv = get(b);
-  const key = label === 'Battery life' ? 'battery_life_h' : label === 'Weight' ? 'weight_g' : label === 'Price' ? 'price' : null;
-  const awin = key ? metricWinner(a, b, key, !['Weight', 'Price'].includes(label)) === 'a' : false;
-  const bwin = key ? metricWinner(a, b, key, !['Weight', 'Price'].includes(label)) === 'b' : false;
-  return <tr className="border-b border-line last:border-0"><td className="p-4 text-dim text-xs sm:text-sm">{label}</td><td className={`p-4 font-mono text-xs sm:text-sm ${awin ? 'text-accent font-bold' : ''}`}>{av}{awin && <span className="ml-2 text-[9px] uppercase">Best</span>}</td><td className={`p-4 font-mono text-xs sm:text-sm ${bwin ? 'text-accent font-bold' : ''}`}>{bv}{bwin && <span className="ml-2 text-[9px] uppercase">Best</span>}</td></tr>;
+  const av = get(a); const bv = get(b); const winner = winnerFor(label, a, b);
+  return <tr className="border-b border-line last:border-0">
+    <td className="p-4 text-dim text-xs sm:text-sm">{label}</td>
+    <td className={`p-4 font-mono text-xs sm:text-sm ${winner === 'a' ? 'text-accent font-bold' : ''}`}>{av}{winner === 'a' && <span className="ml-2 text-[9px] uppercase tracking-wider">Best</span>}</td>
+    <td className={`p-4 font-mono text-xs sm:text-sm ${winner === 'b' ? 'text-accent font-bold' : ''}`}>{bv}{winner === 'b' && <span className="ml-2 text-[9px] uppercase tracking-wider">Best</span>}</td>
+  </tr>;
 }
 
 function similarity(a, b) {
@@ -125,7 +144,7 @@ export default async function ComparisonPage({ params }) {
 
       <section className="bg-panel border border-line rounded-2xl p-5 mb-8"><div className="font-mono text-[9px] text-accent uppercase tracking-[0.14em]">Quick verdict</div><div className="grid sm:grid-cols-3 gap-4 mt-4 items-center"><div><div className="text-dim text-xs">Comparison points</div><div className="font-display font-bold text-2xl mt-1">{scoreA} — {scoreB}</div></div><div className="sm:col-span-2 text-sm leading-6 text-dim">{recommendation}</div></div></section>
 
-      <section className="border border-line rounded-2xl overflow-hidden"><div className="p-5 bg-panel border-b border-line"><h2 className="font-display font-bold text-xl">Specifications compared</h2><p className="text-dim text-sm mt-1">The highlighted value is the stronger result for measurable specs.</p></div><div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b border-line bg-panel2"><th className="p-4 text-xs uppercase text-dim">Specification</th><th className="p-4 text-xs">{a.name}</th><th className="p-4 text-xs">{b.name}</th></tr></thead><tbody>{ROWS.map(([label, get]) => <ComparisonRow key={label} label={label} get={get} a={a} b={b} />)}</tbody></table></div></section>
+      <section className="border border-line rounded-2xl overflow-hidden"><div className="p-5 bg-panel border-b border-line"><h2 className="font-display font-bold text-xl">Specifications compared</h2><p className="text-dim text-sm mt-1">The highlighted value is the stronger result for measurable specs and supported features.</p></div><div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b border-line bg-panel2"><th className="p-4 text-xs uppercase text-dim">Specification</th><th className="p-4 text-xs">{a.name}</th><th className="p-4 text-xs">{b.name}</th></tr></thead><tbody>{ROWS.map(([label, get]) => <ComparisonRow key={label} label={label} get={get} a={a} b={b} />)}</tbody></table></div></section>
 
       <section className="grid md:grid-cols-2 gap-4 mt-8"><div className="bg-panel border border-line rounded-2xl p-5"><h3 className="font-mono text-xs text-accent uppercase mb-3">Check price: {a.name}</h3><VendorButtonsFull links={linksA} /></div><div className="bg-panel border border-line rounded-2xl p-5"><h3 className="font-mono text-xs text-accent uppercase mb-3">Check price: {b.name}</h3><VendorButtonsFull links={linksB} /></div></section>
 
