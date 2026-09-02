@@ -1,14 +1,13 @@
 import { getAllWatches, getBrands, getAllProductLinks } from '@/lib/queries';
 import { canonicalFor, JsonLd, SITE_URL } from '@/lib/seo';
 import ProductCard from '@/components/ProductCard';
-import { Footer } from '@/components/UI';
 
 export const revalidate = 3600;
 
 export async function generateMetadata() {
   return {
     title: 'All Smartwatches | SmartwatchTimeline',
-    description: 'Browse every smartwatch in our database, sorted by release date.',
+    description: 'Browse every smartwatch in our database, sorted by release date, with key specifications and prices.',
     ...canonicalFor('/smartwatches'),
   };
 }
@@ -28,23 +27,45 @@ export default async function CatalogPage() {
     '@type': 'CollectionPage',
     name: 'All Smartwatches',
     url: `${SITE_URL}/smartwatches`,
+    numberOfItems: sorted.length,
   };
 
   return (
     <>
       <JsonLd data={jsonLd} />
       <article className="max-w-6xl mx-auto">
-        <div className="font-mono text-xs text-accent uppercase mb-3">Catalog</div>
-        <h1 className="font-display font-bold text-[38px] sm:text-[54px] leading-tight mb-4">All Smartwatches</h1>
-        <p className="text-dim text-[15px] sm:text-[17px] leading-7 max-w-3xl">{sorted.length} models, newest first.</p>
+        <div className="font-mono text-xs text-accent uppercase tracking-[0.14em] mb-3">Smartwatch Catalog</div>
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div>
+            <h1 className="font-display font-bold text-[38px] sm:text-[54px] leading-tight mb-3">All Smartwatches</h1>
+            <p className="text-dim text-[15px] sm:text-[17px] leading-7 max-w-3xl">
+              Explore {sorted.length} models, from early smartwatches to the latest generations.
+            </p>
+          </div>
+          <div className="font-mono text-xs text-dim border border-line rounded-lg px-3 py-2 shrink-0">
+            Newest first · {brands.length} brands
+          </div>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-10">
-          {sorted.map((watch) => (
-            <ProductCard key={watch.id} watch={watch} brand={brandMap.get(watch.brand_id)} productLinks={linksByWatch.get(watch.id) || []} />
+        <div className="mt-8 flex flex-wrap gap-2">
+          <span className="px-3 py-1.5 rounded-full bg-accent/10 border border-accent/30 text-accent text-xs font-mono">All models</span>
+          <a href="/timeline" className="px-3 py-1.5 rounded-full border border-line text-dim text-xs font-mono hover:border-accent hover:text-accent transition-colors">Timeline</a>
+          <a href="/brands" className="px-3 py-1.5 rounded-full border border-line text-dim text-xs font-mono hover:border-accent hover:text-accent transition-colors">By brand</a>
+          <a href="/compare" className="px-3 py-1.5 rounded-full border border-line text-dim text-xs font-mono hover:border-accent hover:text-accent transition-colors">Compare</a>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-7">
+          {sorted.map((watch, index) => (
+            <ProductCard
+              key={watch.id}
+              watch={watch}
+              brand={brandMap.get(watch.brand_id)}
+              rank={index + 1}
+              productLinks={linksByWatch.get(watch.id) || []}
+            />
           ))}
         </div>
       </article>
-      <Footer />
     </>
   );
 }
