@@ -1,0 +1,67 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
+
+const emptyGuide = { slug: '', priority: 100, category: 'Buying Guide', icon: '⌚', title: '', description: '', intro: '', sections: [], faq: [], filter: null, sort: null, brand_compare: [], status: 'draft', published_at: null };
+const jsonFields = ['sections', 'faq', 'filter', 'sort'];
+
+export default function AdminGuideEditorPage() {
+  const { slug } = useParams();
+  const router = useRouter();
+  const supabase = useMemo(() => getSupabaseBrowser(), []);
+  const [guide, setGuide] = useState(emptyGuide);
+  const [loading, setLoading] = useState(slug !== 'new');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (slug === 'new') return;
+    supabase.from('guides').select('*').eq('slug', slug).maybeSingle().then(({ data, error: queryError }) => {
+      if (queryError) setError(queryError.message);
+      else if (data) setGuide({ ...emptyGuide, ...data });
+      else setError('Guide not found.');
+      setLoading(false);
+    });
+  }, [slug, supabase]);
+
+  const setField = (field, value) => setGuide((current) => ({ ...current, [field]: value }));
+  const parseJson = (field, value) => { try { setField(field, JSON.parse(value)); setError(''); } catch { setError(`${field} must be valid JSON.`); } };
+
+  async function save(event) {
+    event.preventDefault(); setSaving(true); setError('');
+    const payload = { slug: guide.slug.trim(), priority: Number(guide.priority) || 100, category: guide.category.trim(), icon: guide.icon.trim(), title: guide.title.trim(), description: guide.description.trim(), intro: guide.intro, sections: guide.sections || [], faq: guide.faq || [], filter: guide.filter || null, sort: guide.sort || null, brand_compare: guide.brand_compare || [], status: guide.status, published_at: guide.status === 'published' ? (guide.published_at || new Date().toISOString()) : null };
+    if (!payload.slug || !payload.title) { setError('Slug and title are required.'); setSaving(false); return; }
+    const query = slug === 'new' ? supabase.from('guides').insert(payload) : supabase.from('guides').update(payload).eq('slug', slug);
+    const { error: saveError } = await query;
+    if (saveError) setError(saveError.message); else router.push(`/admin/guides/${payload.slug}`);
+    setSaving(false);
+  }
+  async function remove() {
+    if (slug === 'new' || !window.confirm(`Delete “${guide.title || guide.slug}”?`)) return;
+    const { error: deleteError } = await supabase.from('guides').delete().eq('slug', slug);
+    if (deleteError) setError(deleteError.message); else router.push('/admin/guides');
+  }
+
+  if (loading) return <main className="pt-8 text-dim">Loading guide…</main>;
+  return <main className="pt-8 max-w-5xl">
+    <div className="flex items-end gap-4 mb-8"><div className="mr-auto"><Link href="/admin/guides" className="font-mono text-xs text-accent uppercase">← Guides</Link><h1 className="font-display font-bold text-[36px] mt-3">{slug === 'new' ? 'New guide' : 'Edit guide'}</h1></div>{slug !== 'new' && <button onClick={remove} className="btn-ghost text-red-300">Delete</button>}</div>
+    {error && <div className="bg-panel border border-red-500/40 text-red-300 p-4 mb-5 text-sm">{error}</div>}
+    <form onSubmit={save} className="space-y-6">
+      <section className="bg-panel border border-line p-5 grid sm:grid-cols-2 gap-4">
+        {['slug','title','category','icon'].map((field) => <label key={field}><span className="field-label">{field}</span><input className="field-input" value={guide[field] || ''} onChange={(e) => setField(field, e.target.value)} /></label>)}
+        <label><span className="field-label">Priority</span><input type="number" className="field-input" value={guide.priority} onChange={(e) => setField('priority', e.target.value)} /></label>
+        <label><span className="field-label">Status</span><select className="field-input" value={guide.status} onChange={(e) => setField('status', e.target.value)}><option value="draft">Draft</option><option value="published">Published</option></select></label>
+        <label className="sm:col-span-2"><span className="field-label">Description</span><textarea className="field-input min-h-24" value={guide.description || ''} onChange={(e) => setField('description', e.target.value)} /></label>
+        <label className="sm:col-span-2"><span className="field-label">Intro</span><textarea className="field-input min-h-32" value={guide.intro || ''} onChange={(e) => setField('intro', e.target.value)} /></label>
+        <label className="sm:col-span-2"><span className="field-label">Brand compare (comma separated)</span><input className="field-input" value={(guide.brand_compare || []).join(', ')} onChange={(e) => setField('brand_compare', e.target.value.split(',').map((v) => v.trim()).filter(Boolean))} /></label>
+      </section>
+      <section className="bg-panel border border-line p-5 grid gap-4">
+        {jsonFields.map((field) => <label key={field}><span className="field-label">{field} JSON</span><textarea className="field-input min-h-32 font-mono text-xs" value={JSON.stringify(guide[field] ?? null, null, 2)} onChange={(e) => parseJson(field, e.target.value)} /></label>)}
+      </section>
+      <div className="flex justify-end gap-3"><Link href="/admin/guides" className="btn-ghost">Cancel</Link><button className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save guide'}</button></div>
+    </form>
+  </main>;
+}
