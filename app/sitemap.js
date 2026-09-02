@@ -1,10 +1,9 @@
 import { SITE_URL } from '@/lib/seo';
-import { getAllWatches, getBrands, getPublishedArticles } from '@/lib/queries';
-import { GUIDE_PAGES } from '@/lib/guidePages';
+import { getAllWatches, getBrands, getPublishedArticles, getPublishedGuides } from '@/lib/queries';
 import { computeComparisonPairs } from '@/lib/comparisonPairs';
 
 export default async function sitemap() {
-  const [watches, brands, articles] = await Promise.all([getAllWatches(), getBrands(), getPublishedArticles()]);
+  const [watches, brands, articles, guides] = await Promise.all([getAllWatches(), getBrands(), getPublishedArticles(), getPublishedGuides()]);
   const now = new Date();
   const releaseYears = [...new Set(watches.map((w) => new Date(w.release_date).getFullYear()).filter(Number.isFinite))];
 
@@ -13,11 +12,11 @@ export default async function sitemap() {
     '/brands', '/years', '/technologies', '/insights', '/compare', '/privacy',
   ].map((path) => ({ url: `${SITE_URL}${path}`, lastModified: now, changeFrequency: 'weekly', priority: path === '/' ? 1 : 0.8 }));
 
-  const guideRoutes = GUIDE_PAGES.map((g) => ({
-    url: `${SITE_URL}/guides/${g.slug}`,
-    lastModified: now,
+  const guideRoutes = guides.map((guide) => ({
+    url: `${SITE_URL}/guides/${guide.slug}`,
+    lastModified: guide.published_at ? new Date(guide.published_at) : now,
     changeFrequency: 'weekly',
-    priority: g.priority || 0.7,
+    priority: Number(guide.priority) || 0.7,
   }));
 
   const editorialRoutes = articles.map((article) => ({
