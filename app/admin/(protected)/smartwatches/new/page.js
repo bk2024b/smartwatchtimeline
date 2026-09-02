@@ -1,0 +1,68 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
+
+const initial = {
+  id: '', brand_id: '', family: '', generation: '', variant: '', gamme: '', name: '', tagline: '',
+  release_date: '', announcement_date: '', status: 'released', price: null,
+  battery_life_h: null, battery_life_h_saver: null, charging_time_h: null, weight_g: null, case_size_mm: null,
+  water_rating: 'Not rated', display_type: '', ecosystem: '', os: '', image_url: '', image_count: 0,
+  source_primary: '', source_secondary: '', source_checked_at: '', data_confidence: '', notes: '',
+  quality_score: 0, qa_status: 'NEEDS_RESEARCH',
+  cellular: false, gps: false, nfc_payments: false, ecg: false, blood_oxygen: false, heart_rate: true,
+  sleep_tracking: true, always_on_display: false, rugged: false, round_face: false, marquant: false,
+};
+
+const textFields = [
+  ['id','ID / slug'], ['family','Family'], ['generation','Generation'], ['variant','Variant'], ['gamme','Series / gamme'],
+  ['name','Name'], ['tagline','Tagline'], ['water_rating','Water rating'], ['display_type','Display type'], ['ecosystem','Ecosystem'], ['os','OS'],
+  ['image_url','Image URL'], ['source_primary','Primary source'], ['source_secondary','Secondary source'], ['data_confidence','Data confidence'],
+];
+const numberFields = [['price','Launch price'],['battery_life_h','Battery life (h)'],['battery_life_h_saver','Battery saver (h)'],['charging_time_h','Charging time (h)'],['weight_g','Weight (g)'],['case_size_mm','Case size (mm)'],['image_count','Image count']];
+const dateFields = [['release_date','Release date'],['announcement_date','Announcement date'],['source_checked_at','Source checked at']];
+const toggles = ['cellular','gps','nfc_payments','ecg','blood_oxygen','heart_rate','sleep_tracking','always_on_display','rugged','round_face','marquant'];
+
+export default function NewSmartwatchPage() {
+  const router = useRouter();
+  const [watch, setWatch] = useState(initial);
+  const [brands, setBrands] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const supabase = getSupabaseBrowser();
+
+  useEffect(() => { supabase.from('brands').select('id,name').order('name').then(({ data }) => setBrands(data || [])); }, []);
+  function set(field, value) { setWatch((w) => ({ ...w, [field]: value })); }
+  function num(value) { return value === '' ? null : Number(value); }
+
+  async function save(event) {
+    event.preventDefault();
+    if (!watch.id.trim() || !watch.name.trim() || !watch.brand_id || !watch.gamme.trim() || !watch.release_date) {
+      setMessage('ID, brand, series, name and release date are required.'); return;
+    }
+    setSaving(true); setMessage('');
+    const payload = { ...watch, id: watch.id.trim(), updated_at: new Date().toISOString() };
+    const { error } = await supabase.from('smartwatches').insert(payload);
+    setSaving(false);
+    if (error) { setMessage(error.message); return; }
+    router.replace(`/admin/smartwatches/${encodeURIComponent(watch.id.trim())}`);
+  }
+
+  return <main className="pt-8 pb-16">
+    <div className="mb-8"><div className="font-mono text-xs text-accent uppercase mb-2">Catalog / New model</div><h1 className="font-display font-bold text-3xl">Add smartwatch</h1><p className="text-dim text-sm mt-1">Create a complete catalog record.</p></div>
+    <form onSubmit={save} className="space-y-8">
+      <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-panel border border-line p-5">
+        <div><label className="field-label">Brand *</label><select required value={watch.brand_id} onChange={(e) => set('brand_id', e.target.value)} className="field-input"><option value="">Select brand…</option>{brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
+        {textFields.map(([field,label]) => <div key={field}><label className="field-label">{label}{['id','gamme','name'].includes(field) ? ' *' : ''}</label><input required={['id','gamme','name'].includes(field)} value={watch[field] ?? ''} onChange={(e) => set(field, e.target.value)} className="field-input" /></div>)}
+        <div><label className="field-label">Status</label><select value={watch.status} onChange={(e) => set('status', e.target.value)} className="field-input">{['released','announced','discontinued'].map((v) => <option key={v}>{v}</option>)}</select></div>
+        {dateFields.map(([field,label]) => <div key={field}><label className="field-label">{label}{field === 'release_date' ? ' *' : ''}</label><input type="date" required={field === 'release_date'} value={watch[field] || ''} onChange={(e) => set(field, e.target.value)} className="field-input" /></div>)}
+        {numberFields.map(([field,label]) => <div key={field}><label className="field-label">{label}</label><input type="number" step="any" value={watch[field] ?? ''} onChange={(e) => set(field, num(e.target.value))} className="field-input" /></div>)}
+      </section>
+      <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 bg-panel border border-line p-5"><h2 className="sm:col-span-2 lg:col-span-3 font-display font-semibold">Features</h2>{toggles.map((field) => <label key={field} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(watch[field])} onChange={(e) => set(field, e.target.checked)} />{field.replaceAll('_',' ')}</label>)}</section>
+      <section className="grid sm:grid-cols-2 gap-4 bg-panel border border-line p-5"><div><label className="field-label">QA status</label><select value={watch.qa_status} onChange={(e) => set('qa_status', e.target.value)} className="field-input">{['VERIFIED','GOOD','INCOMPLETE','NEEDS_RESEARCH'].map((v) => <option key={v}>{v}</option>)}</select></div><div><label className="field-label">Quality score</label><input type="number" min="0" max="100" value={watch.quality_score} onChange={(e) => set('quality_score', Number(e.target.value))} className="field-input" /></div></section>
+      <section className="bg-panel border border-line p-5"><label className="field-label">Editorial / research notes</label><textarea rows="6" value={watch.notes} onChange={(e) => set('notes', e.target.value)} className="field-input" /></section>
+      <div className="flex items-center gap-4"><button disabled={saving} className="btn-primary">{saving ? 'Creating…' : 'Create smartwatch'}</button><button type="button" onClick={() => router.back()} className="btn-ghost">Cancel</button>{message && <span className="text-dim text-sm">{message}</span>}</div>
+    </form>
+  </main>;
+}
