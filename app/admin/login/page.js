@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') || '/admin';
@@ -48,5 +48,26 @@ export default function AdminLoginPage() {
         <button disabled={loading} className="btn-primary w-full disabled:opacity-50">{loading ? 'Signing in…' : 'Sign in'}</button>
       </form>
     </main>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <main className="min-h-[70vh] flex items-center justify-center py-12">
+      <div className="w-full max-w-md bg-panel border border-line p-6 sm:p-8 animate-pulse">
+        <div className="h-4 w-36 bg-panel2 rounded mb-4" />
+        <div className="h-9 w-48 bg-panel2 rounded mb-3" />
+        <div className="h-4 w-full bg-panel2 rounded mb-2" />
+        <div className="h-10 w-full bg-panel2 rounded mt-7" />
+      </div>
+    </main>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <AdminLoginForm />
+    </Suspense>
   );
 }
