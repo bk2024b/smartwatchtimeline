@@ -1,29 +1,31 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getAllWatches, getBrands, getAllProductLinks } from '@/lib/queries';
+import { getAllWatches, getBrands, getAllProductLinks, getGuideBySlug, getPublishedGuides } from '@/lib/queries';
 import { canonicalFor, JsonLd, SITE_URL } from '@/lib/seo';
-import { GUIDE_PAGES, getGuide } from '@/lib/guidePages';
+import { matchesGuideRule, sortByGuideRule } from '@/lib/guideRules';
 import ProductCard from '@/components/ProductCard';
-import { Footer } from '@/components/UI';
 
 export const revalidate = 3600;
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
-  return GUIDE_PAGES.map((guide) => ({ slug: guide.slug }));
+  const guides = await getPublishedGuides();
+  return guides.map((guide) => ({ slug: guide.slug }));
 }
 
 export async function generateMetadata({ params }) {
-  const guide = getGuide(params.slug);
+  const guide = await getGuideBySlug(params.slug);
   if (!guide) return {};
   return {
     title: `${guide.title} | SmartwatchTimeline`,
     description: guide.description,
     openGraph: { title: guide.title, description: guide.description },
-    ...canonicalFor(`/guides/${params.slug}`),
+    ...canonicalFor(`/guides/${guide.slug}`),
   };
 }
 
 function FAQ({ items }) {
+  if (!Array.isArray(items) || items.length === 0) return null;
   return (
     <section className="mt-14">
       <h2 className="font-display font-semibold text-[24px] mb-5">Frequently asked questions</h2>
@@ -43,8 +45,7 @@ function FAQ({ items }) {
 }
 
 export default async function GuidePage({ params }) {
-  const { slug } = params;
-  const guide = getGuide(slug);
+  const guide = await getGuideBySlug(params.slug);
   if (!guide) notFound();
 
   const [watches, brands, productLinks] = await Promise.all([getAllWatches(), getBrands(), getAllProductLinks()]);
@@ -55,20 +56,19 @@ export default async function GuidePage({ params }) {
     linksByWatch.get(link.smartwatch_id).push(link);
   }
 
-  let candidates = guide.brandCompare
-    ? watches.filter((w) => guide.brandCompare.includes(w.brand_id))
-    : watches.filter((w) => !guide.filter || guide.filter(w));
-  if (guide.sort) candidates = [...candidates].sort(guide.sort);
-  candidates = candidates.slice(0, 12);
+  let candidates = Array.isArray(guide.brand_compare) && guide.brand_compare.length > 0
+    ? watches.filter((w) => guide.brand_compare.includes(w.brand_id))
+    : watches.filter((w) => matchesGuideRule(w, guide.filter));
+  candidates = sortByGuideRule(candidates, guide.sort).slice(0, 12);
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: guide.title,
     description: guide.description,
-    url: `${SITE_URL}/guides/${slug}`,
+    url: `${SITE_URL}/guides/${guide.slug}`,
   };
-  if (guide.faq) {
+  if (Array.isArray(guide.faq) && guide.faq.length) {
     jsonLd.mainEntity = guide.faq.map(([question, answer]) => ({
       '@type': 'Question',
       name: question,
@@ -80,7 +80,7 @@ export default async function GuidePage({ params }) {
     <>
       <JsonLd data={jsonLd} />
       <article className="max-w-6xl mx-auto">
-        <div className="font-mono text-xs text-accent uppercase tracking-[0.14em] mb-3">Smartwatch Guide</div>
+        <div className="font-mono text-xs text-accent uppercase tracking-[0.14em] mb-3">{guide.category || 'Smartwatch Guide'}</div>
         <h1 className="font-display font-bold text-[34px] sm:text-[48px] leading-tight mb-4">{guide.title}</h1>
         <p className="text-dim text-[15px] sm:text-[17px] leading-7 max-w-3xl">{guide.intro}</p>
 
@@ -100,7 +100,7 @@ export default async function GuidePage({ params }) {
         </section>
 
         <div className="grid gap-8 mt-12">
-          {guide.sections.map(([heading, body]) => (
+          {(Array.isArray(guide.sections) ? guide.sections : []).map(([heading, body]) => (
             <section key={heading}>
               <h2 className="font-display font-semibold text-[21px] mb-2">{heading}</h2>
               <p className="text-dim text-[14px] leading-7">{body}</p>
@@ -108,7 +108,7 @@ export default async function GuidePage({ params }) {
           ))}
         </div>
 
-        {guide.faq && <FAQ items={guide.faq} />}
+        <FAQ items={guide.faq} />
 
         <div className="mt-10 flex flex-wrap gap-3 text-sm">
           <Link href="/compare" className="px-4 py-2 rounded-lg border border-line hover:border-accent transition-colors">
@@ -119,7 +119,6 @@ export default async function GuidePage({ params }) {
           </Link>
         </div>
       </article>
-      <Footer />
     </>
   );
 }
