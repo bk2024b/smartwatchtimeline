@@ -12,6 +12,7 @@ const fields = [
 ];
 const toggles = ['cellular','gps','nfc_payments','ecg','blood_oxygen','heart_rate','sleep_tracking','always_on_display','rugged','round_face','marquant'];
 const statuses = ['released','announced','discontinued'];
+const editableFields = ['brand_id', ...fields.map(([field]) => field), 'status', ...toggles, 'image_url', 'image_count', 'quality_score', 'qa_status', 'notes'];
 
 export default function AdminSmartwatchEditor() {
   const { id } = useParams(); const router = useRouter();
@@ -20,7 +21,7 @@ export default function AdminSmartwatchEditor() {
   useEffect(() => { async function load() { const [{ data }, { data: brandData }] = await Promise.all([supabase.from('smartwatches').select('*').eq('id', id).maybeSingle(), supabase.from('brands').select('id,name').order('name')]); setWatch(data); setBrands(brandData || []); } if (id) load(); }, [id]);
   function set(field, value) { setWatch((current) => ({ ...current, [field]: value })); }
   async function uploadImage(file) { if (!file) return; setUploading(true); setMessage(''); const form = new FormData(); form.append('file', file); form.append('watchId', id); const response = await fetch('/api/admin/upload-image', { method: 'POST', body: form }); const result = await response.json(); setUploading(false); if (!response.ok) return setMessage(result.error || 'Upload failed.'); set('image_url', result.url); set('image_count', Number(watch.image_count || 0) + 1); setMessage('Image uploaded. Save the model to publish the URL.'); }
-  async function save(event) { event.preventDefault(); setSaving(true); setMessage(''); const editable = Object.fromEntries(Object.keys(watch).filter((key) => key !== 'id' && !['created_at','updated_at'].includes(key)).map((key) => [key, watch[key]])); const { error } = await supabase.from('smartwatches').update(editable).eq('id', id); setSaving(false); if (error) return setMessage(error.message); setMessage('Saved.'); await revalidateAdminResource('watch', id); }
+  async function save(event) { event.preventDefault(); setSaving(true); setMessage(''); const editable = Object.fromEntries(editableFields.filter((key) => Object.prototype.hasOwnProperty.call(watch, key)).map((key) => [key, watch[key]])); const { error } = await supabase.from('smartwatches').update(editable).eq('id', id); setSaving(false); if (error) return setMessage(error.message); setMessage('Saved.'); await revalidateAdminResource('watch', id); }
   async function remove() { if (!window.confirm('Delete this smartwatch?')) return; const { error } = await supabase.from('smartwatches').delete().eq('id', id); if (error) setMessage(error.message); else { await revalidateAdminResource('watch', id); router.replace('/admin/smartwatches'); } }
   if (watch === null) return <div className="pt-12 text-dim">Loading model…</div>;
   if (!watch) return <div className="pt-12 text-dim">Model not found.</div>;
